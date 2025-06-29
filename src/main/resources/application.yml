@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: SpringBootTest
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/db_parcel_locker
+    username: root
+    password: 111111
+mybatis:
+  configuration:
+    # mybatis驼峰命名转换: a_column ----> aColumn
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+logging:
+  level:
+    # 开启事务管理日志
+    org.springframework.jdbc.support.JdbcTransactionManager: debug
+server:
+  port: 8080

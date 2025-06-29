@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>快递柜控制系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .flex-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            flex: 1 1 30%;
+            min-width: 250px;
+            margin: 10px;
+            padding: 15px;
+            background-color: #fff;
+            border-left: 5px solid #007bff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h4 {
+            margin-top: 0;
+        }
+
+        .status-item {
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 300px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group input[type="number"] {
+            width: 100px;
+        }
+
+        .auto-control {
+            margin-top: 15px;
+        }
+
+        .drawer-status {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .drawer {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .drawer.locked {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .drawer.unlocked {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>快递柜温控系统</h1>
+
+    <div class="section">
+        <label for="portSelector">选择串口设备：</label>
+        <select id="portSelector" onchange="onPortSelected()">
+            <!-- 端口选项将通过JavaScript填充 -->
+        </select>
+    </div>
+
+    <div class="section">
+        <h2>温度监控</h2>
+        <canvas id="temperatureChart"></canvas>
+        <div class="auto-control">
+            <input type="checkbox" id="autoTempControl" onchange="toggleAutoControl(this.checked)">
+            <label for="autoTempControl">自动控温模式</label>
+        </div>
+    </div>
+
+    <div class="flex-container">
+        <div class="card">
+            <h4>设备状态</h4>
+            <div class="status-item"><strong>设备编号:</strong> <span id="deviceCode">-</span></div>
+            <div class="status-item"><strong>地址:</strong> <span id="deviceAddress">-</span></div>
+            <div class="status-item"><strong>系统状态:</strong> <span id="systemStatus">-</span></div>
+            <div class="status-item"><strong>压缩机状态:</strong> <span id="compressorStatus">-</span></div>
+            <div class="status-item"><strong>当前温度:</strong> <span id="currentTemperature">-</span>°C</div>
+            <div class="status-item"><strong>设定温度:</strong> <span id="setTemperature">-</span>°C</div>
+            <div class="status-item"><strong>上传间隔:</strong> <span id="statusUploadInterval">-</span>秒</div>
+            <div class="status-item"><strong>启动延迟:</strong> <span id="compressorStartupDelay">-</span>秒</div>
+            <div class="status-item"><strong>温度偏差:</strong> <span id="temperatureDeviation">-</span>°C</div>
+            <div class="status-item"><strong>更新时间:</strong> <span id="updateTime">-</span></div>
+        </div>
+
+        <div class="card">
+            <h4>控制面板</h4>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="setTemperatureInput">设置温度:</label>
+                    <input type="number" id="setTemperatureInput" step="0.5" min="-63.5" max="63.5">
+                    <button onclick="sendSetTemperature()">发送</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="temperatureDeviationInput">温度偏差:</label>
+                    <input type="number" id="temperatureDeviationInput" min="0" max="127">
+                    <button onclick="sendSetTemperatureDeviation()">发送</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="compressorStartupDelayInput">启动延迟:</label>
+                    <input type="number" id="compressorStartupDelayInput" min="0" max="65535">
+                    <button onclick="sendCompressorStartupDelay()">发送</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="statusUploadIntervalInput">上传间隔:</label>
+                    <input type="number" id="statusUploadIntervalInput" min="1" max="65535">
+                    <button onclick="sendStatusUploadInterval()">发送</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="newDeviceAddress">新地址:</label>
+                    <input type="number" id="newDeviceAddress" min="0" max="127">
+                    <button onclick="sendSetDeviceAddress()">设置地址</button>
+                </div>
+
+                <div class="control-group">
+                    <label for="unlockIndex">解锁抽屉:</label>
+                    <input type="number" id="unlockIndex" min="1" max="10">
+                    <button onclick="sendUnlockCommand()">解锁</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>抽屉状态</h4>
+            <div class="drawer-status" id="drawerStatus">
+                <!-- 抽屉状态将动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>帧数据</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>帧号</th>
+                <th>设备地址</th>
+                <th>类型</th>
+                <th>长度</th>
+                <th>校验码</th>
+                <th>时间</th>
+                <th>数据</th>
+            </tr>
+            </thead>
+            <tbody id="frameList">
+            <!-- 帧数据将动态加载 -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 页面变量
+    let currentPort = '';
+    let currentDeviceAddress = 1;
+    let temperatureChart = null;
+    let temperatureDataHistory = [];
+    let autoControlEnabled = false;
+    let compressorStatus = 0; // 0: 关闭, 1: 准备, 2: 开启, 3: 故障
+    let currentUnLocked = [];
+
+    // 初始化图表
+    function initChart() {
+        const ctx = document.getElementById('temperatureChart').getContext('2d');
+        temperatureChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '温度变化',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: '温度 (°C)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '时间'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 获取并更新设备状态
+    async function updateDeviceStatus() {
+        try {
+            const response = await fetch(`http://localhost:8080/device-status/${currentPort}`);
+            const result = await response.json();
+
+            console.info('{} {}', result);
+            if (result.code === 1 && result.data) {
+                const status = result.data;
+                document.getElementById('deviceCode').textContent = status.deviceCode;
+                document.getElementById('deviceAddress').textContent = status.deviceAddress;
+                document.getElementById('systemStatus').textContent = getSystemStatusText(status.systemStatus);
+                document.getElementById('compressorStatus').textContent = getCompressorStatusText(status.compressorStatus);
+                document.getElementById('currentTemperature').textContent = status.currentTemperature.toFixed(1);
+                document.getElementById('setTemperature').textContent = status.setTemperature.toFixed(1);
+                document.getElementById('statusUploadInterval').textContent = status.statusUploadInterval;
+                document.getElementById('compressorStartupDelay').textContent = status.compressorStartupDelay;
+                document.getElementById('temperatureDeviation').textContent = status.temperatureDeviation;
+                document.getElementById('updateTime').textContent = formatDateTime(status.time);
+
+                // 更新抽屉状态
+                updateDrawerStatus(status.lockStatus);
+
+                // 更新温度历史数据
+                updateTemperatureChart(status.currentTemperature, status.time);
+
+                // 自动控温逻辑
+                if (autoControlEnabled) {
+                    checkAndSendCompressorCommand(status.currentTemperature, status.setTemperature,
+                        status.temperatureDeviation, status.compressorStatus);
+                }
+
+                // 存储最新压缩机状态
+                compressorStatus = status.compressorStatus;
+            }
+        } catch (error) {
+            console.error('获取设备状态失败:', error);
+        }
+    }
+
+    // 获取并更新帧列表
+    async function updateFrameList() {
+        if (!currentPort) return;
+
+        try {
+            const response = await fetch(`http://localhost:8080/frame/${currentPort}`);
+            const result = await response.json();
+
+            if (result.code === 1 && result.data) {
+                const frameList = document.getElementById('frameList');
+                frameList.innerHTML = '';
+
+                result.data.forEach(frame => {
+                    const row = frameList.insertRow();
+                    row.innerHTML = `
+                            <td>${frame.frameNumber}</td>
+                            <td>${frame.deviceAddress}</td>
+                            <td>${getFrameTypeText(frame.type)}</td>
+                            <td>${frame.length}</td>
+                            <td>${frame.checkCode}</td>
+                            <td>${formatDateTime(frame.time)}</td>
+                            <td>${frame.dataBase64 || '-'}</td>
+                        `;
+                });
+            }
+        } catch (error) {
+            console.error('获取帧数据失败:', error);
+        }
+    }
+
+    // 获取可用端口
+    async function getAvailablePorts() {
+        try {
+            const response = await fetch('http://localhost:8080/device-status/all-ports');
+            const result = await response.json();
+
+            console.info('{}', result.data);
+            if (result.code === 1 && result.data && result.data.length > 0) {
+                console.info('{}', result.data);
+                const portSelector = document.getElementById('portSelector');
+                portSelector.innerHTML = '';
+
+                result.data.forEach(port => {
+                    const option = document.createElement('option');
+                    option.value = port;
+                    option.textContent = port;
+                    portSelector.appendChild(option);
+                });
+
+                // 默认选中第一个端口
+                if (!currentPort) {
+                    currentPort = result.data[0];
+                    portSelector.value = currentPort;
+                    onPortSelected();
+                }
+            }
+        } catch (error) {
+            console.error('获取端口列表失败:', error);
+        }
+    }
+
+    // 格式化日期时间
+    function formatDateTime(dateTimeStr) {
+        const date = new Date(dateTimeStr);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} 
+                   ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+    }
+
+    // 获取帧类型文本
+    function getFrameTypeText(type) {
+        switch (type) {
+            case 1:
+                return '查询';
+            case 2:
+                return '压缩机控制';
+            case 3:
+                return '解锁';
+            case 4:
+                return '设置温度';
+            case 5:
+                return '设置参数';
+            case 6:
+                return '设置温度偏差';
+            case 9:
+                return '设置设备地址';
+            case 16:
+                return '状态上传';
+            default:
+                return `未知(${type})`;
+        }
+    }
+
+    // 获取系统状态文本
+    function getSystemStatusText(status) {
+        switch (status) {
+            case 0:
+                return '关闭';
+            case 1:
+                return '准备';
+            case 2:
+                return '开启';
+            default:
+                return `未知(${status})`;
+        }
+    }
+
+    // 获取压缩机状态文本
+    function getCompressorStatusText(status) {
+        switch (status) {
+            case 0:
+                return '关闭';
+            case 1:
+                return '准备';
+            case 2:
+                return '开启';
+            case 3:
+                return '故障';
+            default:
+                return `未知(${status})`;
+        }
+    }
+
+    // 更新抽屉状态显示
+    function updateDrawerStatus(lockStatus) {
+        const drawerStatusContainer = document.getElementById('drawerStatus');
+        drawerStatusContainer.innerHTML = '';
+
+        for (let i = 0; i < 10; i++) {
+            const drawer = document.createElement('div');
+            drawer.className = 'drawer';
+
+            // 检查对应位置的锁状态
+            const isNotLocked = (lockStatus & (1 << ((i + 8) % 16))) !== 0;
+            currentUnLocked[i] = isNotLocked;
+            drawer.textContent = `抽屉 ${i + 1}: ${isNotLocked ? '已开' : '锁定'}`;
+            drawer.className += isNotLocked ? ' unlocked' : ' locked';
+
+            drawerStatusContainer.appendChild(drawer);
+        }
+    }
+
+    // 更新温度图表
+    function updateTemperatureChart(currentTemp, timestamp) {
+        const now = formatDateTime(timestamp);
+
+        // 添加新数据点
+        temperatureChart.data.labels.push(now);
+        temperatureChart.data.datasets[0].data.push(currentTemp);
+
+        // 如果超过一定数量的数据点，移除最旧的数据
+        const MAX_DATA_POINTS = 30;
+        if (temperatureChart.data.labels.length > MAX_DATA_POINTS) {
+            temperatureChart.data.labels.shift();
+            temperatureChart.data.datasets[0].data.shift();
+        }
+
+        temperatureChart.update();
+    }
+
+    // 发送设置温度命令
+    async function sendSetTemperature() {
+        const temperature = parseFloat(document.getElementById('setTemperatureInput').value);
+        console.log({}, temperature);
+        if (isNaN(temperature) || temperature < -63.5 || temperature > 63.5) {
+            alert('请输入有效的温度值（-63.5到63.5之间）');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/command/send-set-temp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    setTemperature: temperature
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+        } catch (error) {
+            console.error('发送设置温度命令失败:', error);
+            alert('发送设置温度命令失败');
+        }
+    }
+
+    // 发送设置温度偏差命令
+    async function sendSetTemperatureDeviation() {
+        const deviation = parseInt(document.getElementById('temperatureDeviationInput').value);
+        if (isNaN(deviation) || deviation < 0 || deviation > 127) {
+            alert('请输入有效的温度偏差值（0到127之间）');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/command/send-set-temp-deviation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    temperatureDeviation: deviation
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+        } catch (error) {
+            console.error('发送设置温度偏差命令失败:', error);
+            alert('发送设置温度偏差命令失败');
+        }
+    }
+
+    // 发送压缩机启动延迟命令
+    async function sendCompressorStartupDelay() {
+        const delay = parseInt(document.getElementById('compressorStartupDelayInput').value);
+        if (isNaN(delay) || delay < 0 || delay > 65535) {
+            alert('请输入有效的启动延迟值（0到65535之间）');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/command/send-compressor-startup-delay', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    compressorStartupDelay: delay
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+        } catch (error) {
+            console.error('发送压缩机启动延迟命令失败:', error);
+            alert('发送压缩机启动延迟命令失败');
+        }
+    }
+
+    // 发送状态上传间隔命令
+    async function sendStatusUploadInterval() {
+        const interval = parseInt(document.getElementById('statusUploadIntervalInput').value);
+        if (isNaN(interval) || interval < 1 || interval > 65535) {
+            alert('请输入有效的上传间隔值（1到65535之间）');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/command/send-status-upload-interval', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    statusUploadInterval: interval
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+        } catch (error) {
+            console.error('发送状态上传间隔命令失败:', error);
+            alert('发送状态上传间隔命令失败');
+        }
+    }
+
+    // 发送设置设备地址命令
+    async function sendSetDeviceAddress() {
+        const newAddress = parseInt(document.getElementById('newDeviceAddress').value);
+        if (isNaN(newAddress) || newAddress < 0 || newAddress > 127) {
+            alert('请输入有效的设备地址（0到127之间）');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/command/send-set-device-address', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    deviceCode: "FFFFFFFFFF",  // 这里可能需要根据实际情况修改
+                    deviceAddress: newAddress
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+
+            // 如果地址设置成功，更新当前设备地址
+            if (result.code === 1) {
+                currentDeviceAddress = newAddress;
+            }
+        } catch (error) {
+            console.error('发送设置设备地址命令失败:', error);
+            alert('发送设置设备地址命令失败');
+        }
+    }
+
+    // 发送解锁命令
+    async function sendUnlockCommand() {
+        const index = parseInt(document.getElementById('unlockIndex').value);
+        if (isNaN(index) || index < 1 || index > 10) {
+            alert('请输入有效的抽屉编号（1到10之间）');
+            return;
+        }
+
+        try {
+            let indexes = [];
+            indexes.push(index - 1);
+            for (let i = 0; i < 10; i++) {
+                if (currentUnLocked[i] === true) {
+                    indexes.push(i);
+                }
+            }
+            const response = await fetch('http://localhost:8080/command/send-unlock', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    indexes: indexes
+                })
+            });
+
+            const result = await response.json();
+            alert(result.msg);
+        } catch (error) {
+            console.error('发送解锁命令失败:', error);
+            alert('发送解锁命令失败');
+        }
+    }
+
+    // 切换自动控温
+    function toggleAutoControl(enabled) {
+        autoControlEnabled = enabled;
+    }
+
+    // 检查是否需要发送压缩机命令
+    function checkAndSendCompressorCommand(currentTemp, setTemp, tempDeviation, compressorStatus) {
+        // 如果压缩机处于故障状态，不执行自动控制
+        if (compressorStatus === 3) {
+            return;
+        }
+
+        // 当前温度高于设定温度+偏差，需要启动压缩机
+        if (currentTemp > setTemp + tempDeviation && compressorStatus !== 2) {
+            sendCompressorCommand(true);
+        }
+        // 当前温度低于设定温度-偏差，需要停止压缩机
+        else if (currentTemp < setTemp - tempDeviation && compressorStatus !== 0) {
+            sendCompressorCommand(false);
+        }
+    }
+
+    // 发送压缩机命令
+    async function sendCompressorCommand(start) {
+        try {
+            const endpoint = start ? 'send-compressor-start' : 'send-compressor-stop';
+            const command = start ? 1 : 0;
+
+            const response = await fetch(`http://localhost:8080/command/${endpoint}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    currentPortName: currentPort,
+                    currentDeviceAddress: currentDeviceAddress,
+                    deviceAddress: currentDeviceAddress,
+                    portName: currentPort
+                })
+            });
+
+            const result = await response.json();
+            console.log(result.msg);
+        } catch (error) {
+            console.error(`发送压缩机${start ? '启动' : '停止'}命令失败:`, error);
+        }
+    }
+
+    // 端口选择事件处理
+    async function onPortSelected() {
+        currentPort = document.getElementById('portSelector').value;
+        currentDeviceAddress = 1; // 重置为默认地址
+
+        // 清空温度历史数据
+        temperatureDataHistory = [];
+        if (temperatureChart) {
+            temperatureChart.data.labels = [];
+            temperatureChart.data.datasets[0].data = [];
+            temperatureChart.update();
+        }
+
+        // 立即更新一次数据
+        await updateDeviceStatus();
+        await updateFrameList();
+    }
+
+    // 初始化
+    function init() {
+        initChart();
+        getAvailablePorts();
+    }
+
+    // 定时刷新
+    function startPolling() {
+        setInterval(async () => {
+            await updateDeviceStatus();
+            await updateFrameList();
+        }, 1000); // 每秒刷新一次
+    }
+
+    // 初始化并开始轮询
+    init();
+    startPolling();
+</script>
+</body>
+</html>

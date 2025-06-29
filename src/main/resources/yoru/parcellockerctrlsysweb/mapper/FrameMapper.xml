@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="yoru.parcellockerctrlsysweb.mapper.FrameMapper">
+    <resultMap id="FrameResultMap" type="yoru.parcellockerctrlsysweb.pojo.Frame">
+        <result property="direction" column="direction"/>
+        <result property="length" column="length"/>
+        <result property="frameNumber" column="frame_number"/>
+        <result property="deviceAddress" column="device_address"/>
+        <result property="type" column="type"/>
+        <result property="data" column="data" jdbcType="BLOB" typeHandler="org.apache.ibatis.type.BlobTypeHandler"/>
+        <result property="checkCode" column="check_code"/>
+        <result property="time" column="time"/>
+        <result property="portName" column="port_name"/>
+    </resultMap>
+
+    <insert id="insertFrame">
+        INSERT INTO tb_frames (direction,
+                               length,
+                               frame_number,
+                               device_address,
+                               type,
+                               data,
+                               check_code,
+                               time,
+                               port_name)
+        VALUES (#{direction},
+                #{length},
+                #{frameNumber},
+                #{deviceAddress},
+                #{type},
+                #{data, jdbcType=BLOB, typeHandler=org.apache.ibatis.type.BlobTypeHandler},
+                #{checkCode},
+                #{time},
+                #{portName})
+    </insert>
+
+    <select id="queryFrames" resultMap="FrameResultMap">
+        SELECT *
+        FROM tb_frames
+        WHERE port_name = #{portName}
+        ORDER BY time DESC
+    </select>
+
+    <select id="countFrames" resultType="long">
+        SELECT COUNT(*)
+        FROM tb_frames
+        WHERE port_name = #{portName}
+    </select>
+
+    <select id="queryFramesByPage" resultMap="FrameResultMap">
+        SELECT *
+        FROM tb_frames
+        WHERE port_name = #{portName}
+        ORDER BY time DESC
+        LIMIT #{start}, #{pageSize}
+    </select>
+</mapper>

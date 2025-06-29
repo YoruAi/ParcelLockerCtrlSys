@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="yoru.parcellockerctrlsysweb.mapper.DeviceStatusMapper">
+    <insert id="insertDeviceStatus">
+        INSERT INTO tb_device_status (device_code,
+                                      device_address,
+                                      system_status,
+                                      compressor_status,
+                                      current_temperature,
+                                      set_temperature,
+                                      lock_status,
+                                      status_upload_interval,
+                                      compressor_startup_delay,
+                                      temperature_deviation,
+                                      time,
+                                      port_name)
+        VALUES (#{deviceCode},
+                #{deviceAddress},
+                #{systemStatus},
+                #{compressorStatus},
+                #{currentTemperature},
+                #{setTemperature},
+                #{lockStatus},
+                #{statusUploadInterval},
+                #{compressorStartupDelay},
+                #{temperatureDeviation},
+                #{time},
+                #{portName})
+    </insert>
+
+    <select id="queryLatestDeviceStatus" resultType="yoru.parcellockerctrlsysweb.pojo.DeviceStatus">
+        SELECT *
+        FROM tb_device_status
+        WHERE port_name = #{portName}
+        ORDER BY time DESC
+        LIMIT 1
+    </select>
+
+    <select id="queryHistorySetTemperature" resultType="double">
+        SELECT set_temperature
+        FROM tb_device_status
+        WHERE port_name = #{portName}
+        ORDER BY time
+    </select>
+
+    <select id="queryHistoryCurrentTemperature" resultType="double">
+        SELECT current_temperature
+        FROM tb_device_status
+        WHERE port_name = #{portName}
+        ORDER BY time
+    </select>
+</mapper>
