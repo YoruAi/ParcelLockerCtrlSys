@@ -31,7 +31,7 @@
 
 - **GUI-Version**：Java Swing可视化方案，其中使用JDBC数据库访问方式，jFreeChart绘制图表方式。具体指南请参考该分支下的README.md文件。
 - **Web-Version**：SpringBoot方案，其中使用Mybatis数据库访问框架。具体指南请参考该分支下的README.md文件。
-- **master**：用于提供通用文件，包括数据库创建SQL脚本、教师提供的参考文档与模拟快递柜程序以及本README.md文件。
+- **main**：用于提供通用文件，包括数据库创建SQL脚本、教师提供的参考文档与模拟快递柜程序以及本README.md文件。
 
 ## 本项目参考注意事项
 
